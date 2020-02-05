@@ -110,8 +110,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のIPアド
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。Adminのパスワードを聞かれるので、`cdk.context.json`に記載したパスワードを入力します。
-セッションマネージャーではなくRDPで実行して下さい。
+ADに参加します。`cdk.context.json`に記載したパスワードを入力します。
 
 ```
 $user = 'corp.example.com\Admin'
