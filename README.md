@@ -40,8 +40,8 @@ npm install -g aws-cdk
 CDKプロジェクトをローカルにクローンします。
 
 ```
-git clone https://github.com/sotoiwa/aws-fsx-poc.git
-cd aws-fsx-poc
+git clone https://github.com/sotoiwa/FSx-PoC-Environment.git
+cd FSx-PoC-Environment
 ```
 
 ### Pythonの準備
