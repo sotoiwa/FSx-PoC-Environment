@@ -6,6 +6,7 @@ from cdksample.network_stack import NetworkStack
 from cdksample.iam_stack import IamStack
 from cdksample.bastion_windows_stack import BastionWindowsStack
 from cdksample.microsoft_ad_stack import MicrosoftADStack
+from cdksample.fsx_stack import FSxStack
 
 app = core.App()
 prefix = app.node.try_get_context('stack_prefix')
@@ -26,5 +27,8 @@ props = bastion_windows_stack.outputs
 
 micorsoft_ad_stack = MicrosoftADStack(app, '{}-MicrosoftADStack'.format(prefix), env=env, props=props)
 props = micorsoft_ad_stack.outputs
+
+fsx_stack = FSxStack(app, '{}-FSxStack'.format(prefix), env=env, props=props)
+props = fsx_stack.outputs
 
 app.synth()

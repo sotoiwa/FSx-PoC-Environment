@@ -87,10 +87,11 @@ cdk deploy *Stack --require-approval never
 
 - [Windows インスタンスを手動で参加させる](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/join_windows_instance.html)
 
-ADのDNSアドレスを確認します。
+ADのDNSサーバーのアドレスを確認します。
 
 ```
-aws ds describe-directories | jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
+aws ds describe-directories | \
+  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
 ```
 
 RDPで踏み台Windowsに接続し、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
@@ -146,10 +147,20 @@ cat setup-DFSN-servers.template | sed -e s/nodejs8.10/nodejs12.x/g > setup-DFSN-
 パラメータファイルを作成します。
 
 ```
-DirectoryId=$(aws ds describe-directories | jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId')
+DirectoryId=$(aws ds describe-directories | 
+                jq -r '.DirectoryDescriptions[] |
+                         select( .Name == "corp.example.com" ) |
+                         .DirectoryId')
 KeyName=$(cat cdk.context.json | jq -r '.key_name')
-SecurityGroup=$(aws ec2 describe-security-groups | jq -r '.SecurityGroups[] | select ( .GroupName | test("InternalSecurityGroup") ) | .GroupId')
-Subnets=( $(aws ec2 describe-subnets | jq -r '.Subnets[] | select( .Tags ) | select( [ select( .Tags[].Value | test("Isolated") ) ] | length > 0 ) | .SubnetId') )
+SecurityGroup=$(aws ec2 describe-security-groups | 
+                  jq -r '.SecurityGroups[] |
+                           select ( .GroupName | test("InternalSecurityGroup") ) |
+                           .GroupId')
+Subnets=( $(aws ec2 describe-subnets | 
+              jq -r '.Subnets[] |
+                       select( .Tags ) | 
+                       select( [ select( .Tags[].Value | test("Isolated") ) ] | length > 0 ) | 
+                       .SubnetId') )
 cat <<EOF >setup-DFSN-servers.parameter.json
 {
   "Parameters": [

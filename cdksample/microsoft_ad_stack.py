@@ -13,7 +13,7 @@ class MicrosoftADStack(core.Stack):
         vpc = props['vpc']
 
         # MicrosoftAD
-        mad = directoryservice.CfnMicrosoftAD(
+        microsoft_ad = directoryservice.CfnMicrosoftAD(
             self, 'Directory',
             name='corp.example.com',
             password=self.node.try_get_context('microsoft_ad_password'),
@@ -25,6 +25,7 @@ class MicrosoftADStack(core.Stack):
         )
 
         self.output_props = props.copy()
+        self.output_props['microsoft_ad'] = microsoft_ad
 
     @property
     def outputs(self):
