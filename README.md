@@ -1,5 +1,7 @@
 # FSx-PoC-Environment
 
+![image](architecture.png)
+
 ## 関連ドキュメント
 
 - [よくある質問](https://aws.amazon.com/jp/fsx/windows/faqs/?nc=sn&loc=7)
