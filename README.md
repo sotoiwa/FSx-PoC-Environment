@@ -1,16 +1,18 @@
 # FSx-PoC-Environment
 
-![image](architecture.png)
+![](architecture1.png)
+![](architecture2.png)
 
 ## 関連ドキュメント
 
 - [よくある質問](https://aws.amazon.com/jp/fsx/windows/faqs/?nc=sn&loc=7)
 - [ユーザーガイド](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/what-is.html)
-- [CLI](https://docs.aws.amazon.com/cli/latest/reference/fsx/index.html)
-- [API](https://docs.aws.amazon.com/fsx/latest/APIReference/welcome.html)
+- [FSx CLI](https://docs.aws.amazon.com/cli/latest/reference/fsx/index.html)
+- [FSx API](https://docs.aws.amazon.com/fsx/latest/APIReference/welcome.html)
 - [Getting Started with Amazon FSx](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/getting-started.html)
 - [AWS Managed Microsoft AD のグループポリシーを使用して、ドメインユーザーに EC2 Windows インスタンスへの RDP アクセスを許可する方法を教えてください。](https://aws.amazon.com/jp/premiumsupport/knowledge-center/ec2-domain-user-rdp/)
 - [AWS Managed Microsoft AD のユーザーとグループを管理する](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/ms_ad_manage_users_groups.html)
+- [Windows インスタンスを手動で参加させる](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/join_windows_instance.html)
 
 ## 前提
 
@@ -83,9 +85,85 @@ VPC、踏み台Windowsホスト、MicrosoftADをデプロイします。
 cdk deploy *Stack --require-approval never
 ```
 
-## 踏み台WindowsをADに参加
+## domain.local
 
-- [Windows インスタンスを手動で参加させる](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/join_windows_instance.html)
+### ドメインコントローラの作成
+
+`domain.local`のドメインを作成します。
+
+踏み台サーバーを経由してドメインコントローラ用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+
+ADドメインサービスの機能をインストールします。
+
+```
+Import-Module ServerManager
+Get-WindowsFeature
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+Get-WindowsFeature
+```
+
+ドメインコントローラに昇格させます。
+
+```
+#
+# AD DS 配置用の Windows PowerShell スクリプト
+#
+
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "Win2012R2" `
+-DomainName "domain.local" `
+-DomainNetbiosName "DOMAIN" `
+-ForestMode "Win2012R2" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-Force:$true
+```
+
+### クライアントWindowsのドメインへの参加
+
+ドメインコントローラのIPアドレスを確認します。
+
+```
+aws ec2 describe-instances | \
+  jq -r '.Reservations[].Instances[] |
+           select( .Tags ) | 
+           select( [ select( .Tags[].Value | test("DomainControllerWindows") ) ] | length > 0 ) | 
+           .PrivateIpAddress'
+```
+
+踏み台サーバーを経由してクライアント用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+
+DNSを変更します。
+
+```
+Get-NetAdapter | Get-DnsClientServerAddress
+Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコントローラのIPアドレス>
+Get-NetAdapter | Get-DnsClientServerAddress
+```
+
+ADに参加します。
+
+```
+$user = 'domain.local\Administrator'
+$password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
+$Credential = New-Object System.Management.Automation.PsCredential($user, $password)
+Add-Computer -DomainName domain.local -Credential $Credential
+```
+
+変更を反映するためリブートします。
+
+```
+Restart-Computer -Force
+```
+
+## corp.example.com
+
+### クライアントWindowsのドメインへの参加
 
 ADのDNSサーバーのアドレスを確認します。
 
@@ -105,7 +183,7 @@ Install-WindowsFeature -Name GPMC,RSAT-AD-Tools,RSAT-DNS-Server
 Get-WindowsFeature
 ```
 
-DNSを変更します。
+DNSサーバーを変更します。
 
 ```
 Get-NetAdapter | Get-DnsClientServerAddress
@@ -128,77 +206,3 @@ Add-Computer -DomainName corp.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
-## DFS
-
-- [Scaling Out Storage and Throughput with DFS Namespaces](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/group-file-systems.html)
-
-上記リンク先のCFnテンプレートをローカルにダウンロードします。
-
-```
-curl -o https://s3.amazonaws.com/solution-references/fsx/dfs/setup-DFSN-servers.template
-```
-
-Lambdaのランタイム指定が古いので変更します。
-
-```
-cat setup-DFSN-servers.template | sed -e s/nodejs8.10/nodejs12.x/g > setup-DFSN-servers.yaml
-```
-
-パラメータファイルを作成します。
-
-```
-DirectoryId=$(aws ds describe-directories | 
-                jq -r '.DirectoryDescriptions[] |
-                         select( .Name == "corp.example.com" ) |
-                         .DirectoryId')
-KeyName=$(cat cdk.context.json | jq -r '.key_name')
-SecurityGroup=$(aws ec2 describe-security-groups | 
-                  jq -r '.SecurityGroups[] |
-                           select ( .GroupName | test("InternalSecurityGroup") ) |
-                           .GroupId')
-Subnets=( $(aws ec2 describe-subnets | 
-              jq -r '.Subnets[] |
-                       select( .Tags ) | 
-                       select( [ select( .Tags[].Value | test("Isolated") ) ] | length > 0 ) | 
-                       .SubnetId') )
-cat <<EOF >setup-DFSN-servers.parameter.json
-{
-  "Parameters": [
-    {
-      "ParameterKey": "DirectoryId",
-      "ParameterValue": "${DirectoryId}"
-    },
-    {
-      "ParameterKey": "KeyName",
-      "ParameterValue": "${KeyName}"
-    },
-    {
-      "ParameterKey": "InstanceType",
-      "ParameterValue": "t3.large"
-    },
-    {
-      "ParameterKey": "SecurityGroup",
-      "ParameterValue": "${SecurityGroup}"
-    },
-    {
-      "ParameterKey": "Subnet",
-      "ParameterValue": "${Subnets[0]},${Subnets[1]}"
-    },
-    {
-      "ParameterKey": "WindowsVersion",
-      "ParameterValue": "Windows Server 2016 English 64-bit"
-    }
-  ]
-}
-EOF
-```
-
-スタックをデプロイします。
-
-```
-aws cloudformation create-stack \
-  --stack-name FSx-DFSStack \
-  --template-body file://setup-DFSN-servers.yaml \
-  --cli-input-json file://setup-DFSN-servers.parameter.json \
-  --capabilities CAPABILITY_IAM
-```

@@ -12,9 +12,9 @@ class FSxStack(core.Stack):
 
         vpc = props['vpc']
         internal_sg = props['internal_sg']
-        microsoft_ad = props['microsoft_ad']
+        managed_ad = props['managed_ad']
 
-        # FSx
+        # FSxその1
         fs1 = fsx.CfnFileSystem(
             self, 'FileSystem1',
             file_system_type='WINDOWS',
@@ -22,7 +22,7 @@ class FSxStack(core.Stack):
             security_group_ids=[internal_sg.security_group_id],
             storage_capacity=100,
             windows_configuration={
-                "activeDirectoryId": microsoft_ad.ref,
+                "activeDirectoryId": managed_ad.ref,
                 "deploymentType": "MULTI_AZ_1",
                 "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],
                 "throughputCapacity": 8

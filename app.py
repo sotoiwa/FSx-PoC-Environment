@@ -3,10 +3,11 @@
 from aws_cdk import core
 
 from cdksample.network_stack import NetworkStack
-from cdksample.iam_stack import IamStack
-from cdksample.bastion_windows_stack import BastionWindowsStack
-from cdksample.microsoft_ad_stack import MicrosoftADStack
+from cdksample.bastion_stack import BastionStack
+from cdksample.local_domain_stack import LocalDomainStack
+from cdksample.managed_ad_stack import ManagedADStack
 from cdksample.fsx_stack import FSxStack
+
 
 app = core.App()
 prefix = app.node.try_get_context('stack_prefix')
@@ -19,14 +20,14 @@ props = dict()
 network_stack = NetworkStack(app, '{}-NetworkStack'.format(prefix), env=env, props=props)
 props = network_stack.outputs
 
-iam_stack = IamStack(app, '{}-IamStack'.format(prefix), env=env, props=props)
-props = iam_stack.outputs
+local_domain_stack = LocalDomainStack(app, '{}-LocalDomainStack'.format(prefix), env=env, props=props)
+props = local_domain_stack.outputs
 
-bastion_windows_stack = BastionWindowsStack(app, '{}-BastionWindowsStack'.format(prefix), env=env, props=props)
+bastion_windows_stack = BastionStack(app, '{}-BastionStack'.format(prefix), env=env, props=props)
 props = bastion_windows_stack.outputs
 
-micorsoft_ad_stack = MicrosoftADStack(app, '{}-MicrosoftADStack'.format(prefix), env=env, props=props)
-props = micorsoft_ad_stack.outputs
+managed_ad_stack = ManagedADStack(app, '{}-ManagedADStack'.format(prefix), env=env, props=props)
+props = managed_ad_stack.outputs
 
 fsx_stack = FSxStack(app, '{}-FSxStack'.format(prefix), env=env, props=props)
 props = fsx_stack.outputs

@@ -47,20 +47,52 @@ class NetworkStack(core.Stack):
         )
 
         # Bastion用セキュリティグループ
-        bastion_windows_sg = ec2.SecurityGroup(
-            self, 'BastionWindowsSecurityGroup',
+        bastion_sg = ec2.SecurityGroup(
+            self, 'BastionSecurityGroup',
             vpc=vpc
         )
         # BastionへのRDPを許可
-        bastion_windows_sg.add_ingress_rule(
+        bastion_sg.add_ingress_rule(
             ec2.Peer.any_ipv4(),
             ec2.Port.tcp(3389)
+        )
+
+        ################
+        # VPCエンドポイントの作成
+        ################
+
+        # SSMのためのエンドポイントを作成
+        vpc.add_interface_endpoint(
+            id='SsmEndpoint',
+            service=ec2.InterfaceVpcEndpointAwsService.SSM,
+            private_dns_enabled=True,
+            security_groups=[internal_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED)
+        )
+        vpc.add_interface_endpoint(
+            id='SsmMessagesEndpoint',
+            service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
+            private_dns_enabled=True,
+            security_groups=[internal_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED)
+        )
+        vpc.add_interface_endpoint(
+            id='Ec2MessagesEndpoint',
+            service=ec2.InterfaceVpcEndpointAwsService.E_C2_MESSAGES,
+            private_dns_enabled=True,
+            security_groups=[internal_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED)
+        )
+        vpc.add_gateway_endpoint(
+            id='S3Endpoint',
+            service=ec2.GatewayVpcEndpointAwsService.S3,
+            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED)]
         )
 
         self.output_props = props.copy()
         self.output_props['vpc'] = vpc
         self.output_props['internal_sg'] = internal_sg
-        self.output_props['bastion_windows_sg'] = bastion_windows_sg
+        self.output_props['bastion_sg'] = bastion_sg
 
     @property
     def outputs(self):
