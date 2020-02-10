@@ -20,7 +20,7 @@ class FSxStack(core.Stack):
             file_system_type='WINDOWS',
             subnet_ids=vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
             security_group_ids=[internal_sg.security_group_id],
-            storage_capacity=100,
+            storage_capacity=50,
             windows_configuration={
                 "selfManagedActiveDirectoryConfiguration": {
                     "dnsIps": [
@@ -42,11 +42,11 @@ class FSxStack(core.Stack):
             file_system_type='WINDOWS',
             subnet_ids=vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
             security_group_ids=[internal_sg.security_group_id],
-            storage_capacity=100,
+            storage_capacity=50,
             windows_configuration={
                 "activeDirectoryId": managed_ad.ref,
                 "deploymentType": "MULTI_AZ_1",
-                "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],
+                "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[1],
                 "throughputCapacity": 8
             }
         )
