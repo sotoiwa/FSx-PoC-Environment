@@ -36,20 +36,20 @@ class FSxStack(core.Stack):
             }
         )
 
-        # # Managed ADに接続するFSx
-        # managed_ad_fs = fsx.CfnFileSystem(
-        #     self, 'ManagedADFileSystem',
-        #     file_system_type='WINDOWS',
-        #     subnet_ids=vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
-        #     security_group_ids=[internal_sg.security_group_id],
-        #     storage_capacity=100,
-        #     windows_configuration={
-        #         "activeDirectoryId": managed_ad.ref,
-        #         "deploymentType": "MULTI_AZ_1",
-        #         "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],
-        #         "throughputCapacity": 8
-        #     }
-        # )
+        # Managed ADに接続するFSx
+        managed_ad_fs = fsx.CfnFileSystem(
+            self, 'ManagedADFileSystem',
+            file_system_type='WINDOWS',
+            subnet_ids=vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
+            security_group_ids=[internal_sg.security_group_id],
+            storage_capacity=100,
+            windows_configuration={
+                "activeDirectoryId": managed_ad.ref,
+                "deploymentType": "MULTI_AZ_1",
+                "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],
+                "throughputCapacity": 8
+            }
+        )
 
         self.output_props = props.copy()
 

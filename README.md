@@ -92,11 +92,11 @@ cdk deploy *NetworkStack *BastionStack *LocalDomainStack *ManagedADStack --requi
 
 ## domain.local
 
-### ドメインコントローラの作成
+### ドメインコントローラーの作成
 
 `domain.local`のドメインを作成します。
 
-踏み台サーバーを経由してドメインコントローラ用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+踏み台サーバーを経由してドメインコントローラー用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
 
 ADドメインサービスの機能をインストールします。
 
@@ -107,7 +107,7 @@ Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
 Get-WindowsFeature
 ```
 
-ドメインコントローラに昇格させます。
+ドメインコントローラーに昇格させます。
 
 ```
 #
@@ -131,7 +131,7 @@ Install-ADDSForest `
 
 ### クライアントWindowsのドメインへの参加
 
-ドメインコントローラのIPアドレスを確認します。
+ドメインコントローラーのIPアドレスを確認します。
 
 ```
 aws ec2 describe-instances | \
@@ -213,8 +213,47 @@ Restart-Computer -Force
 
 ## FSxのデプロイ
 
+`cdk.context.json`にdomain.localのドメインコントローラーのIPアドレスと、Administratorのパスワードを記載します。
+
 FSxリソースをデプロイします。
 
 ```
 cdk deploy *FSxStack --require-approval never
+```
+
+## ドメインユーザーのRDPの許可
+
+
+
+## domain.localのマウント確認
+
+DNS名をを確認します。
+
+```
+aws fsx describe-file-systems | \
+  jq -r '.FileSystems[] |
+           select( .Tags ) | 
+           select( [ select( .Tags[].Value | test("LocalDomainFileSystem") ) ] | length > 0 ) | 
+           .DNSName'
+```
+
+RDPでネットワークドライブを割り当てます。
+
+## Active Directoryでのユーザー追加
+
+ユーザーを作成します。
+
+```
+Get-ADUser -Filter *
+$user = 'test'
+$password = ConvertTo-SecureString -AsPlainText 'Password99!' -Force
+New-ADUser $user -AccountPassword $password
+```
+
+グループに追加します。
+
+```
+Get-ADGroup -Filter *
+Add-ADGroupMember -Identity Administrators -Members test
+Get-ADGroupMember -Identity Administrators
 ```
