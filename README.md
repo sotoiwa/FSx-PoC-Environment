@@ -151,7 +151,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコン
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。ここで入力するパスワードはマネージメントコンソールでLocalDomainControllerWindowsインスタンスの「接続」から確認します。
+ADに参加します。ここで入力するパスワードはマネジメントコンソールでLocalDomainControllerWindowsインスタンスの「接続」から確認します。
 
 ```
 $user = 'domain.local\Administrator'
@@ -227,7 +227,7 @@ cdk deploy *FSxStack --require-approval never
 
 ## domain.localのマウント確認
 
-DNS名をを確認します。
+DNS名を確認します。
 
 ```
 aws fsx describe-file-systems | \
@@ -237,7 +237,7 @@ aws fsx describe-file-systems | \
            .DNSName'
 ```
 
-RDPでネットワークドライブを割り当てます。
+RDPで接続し、ネットワークドライブを割り当てます。
 
 ## Active Directoryでのユーザー追加
 
