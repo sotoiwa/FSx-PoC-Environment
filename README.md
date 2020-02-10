@@ -1,9 +1,9 @@
 # FSx-PoC-Environment
 
-インフラ構成
+#### インフラ構成
 ![](architecture1.png)
 
-Active Directory構成
+#### Active Directory構成
 ![](architecture2.png)
 
 ## 関連ドキュメント
