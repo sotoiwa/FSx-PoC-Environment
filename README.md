@@ -1,9 +1,11 @@
 # FSx-PoC-Environment
 
 #### インフラ構成
+
 ![](architecture1.png)
 
 #### Active Directory構成
+
 ![](architecture2.png)
 
 ## 関連ドキュメント
@@ -82,10 +84,10 @@ CDKが使用するバケットを作成します。
 cdk bootstrap
 ```
 
-VPC、踏み台Windowsホスト、MicrosoftADをデプロイします。
+FSx以外のリソースをデプロイします。
 
 ```
-cdk deploy *Stack --require-approval never
+cdk deploy *NetworkStack *BastionStack *LocalDomainStack *ManagedADStack --require-approval never
 ```
 
 ## domain.local
@@ -149,7 +151,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコン
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。
+ADに参加します。ここで入力するパスワードはマネージメントコンソールでLocalDomainControllerWindowsインスタンスの「接続」から確認します。
 
 ```
 $user = 'domain.local\Administrator'
@@ -175,7 +177,7 @@ aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
 ```
 
-RDPで踏み台Windowsに接続し、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+踏み台サーバーを経由してクライアント用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
 
 AD管理に必要なツールをPowerShellでインストールします。
 
@@ -194,7 +196,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のIPアド
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。`cdk.context.json`に記載したパスワードを入力します。
+ADに参加します。`cdk.context.json`に記載したManaged ADのパスワードを入力します。
 
 ```
 $user = 'corp.example.com\Admin'
@@ -209,3 +211,10 @@ Add-Computer -DomainName corp.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
+## FSxのデプロイ
+
+FSxリソースをデプロイします。
+
+```
+cdk deploy *FSxStack --require-approval never
+```

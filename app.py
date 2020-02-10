@@ -20,11 +20,11 @@ props = dict()
 network_stack = NetworkStack(app, '{}-NetworkStack'.format(prefix), env=env, props=props)
 props = network_stack.outputs
 
-local_domain_stack = LocalDomainStack(app, '{}-LocalDomainStack'.format(prefix), env=env, props=props)
-props = local_domain_stack.outputs
-
 bastion_windows_stack = BastionStack(app, '{}-BastionStack'.format(prefix), env=env, props=props)
 props = bastion_windows_stack.outputs
+
+local_domain_stack = LocalDomainStack(app, '{}-LocalDomainStack'.format(prefix), env=env, props=props)
+props = local_domain_stack.outputs
 
 managed_ad_stack = ManagedADStack(app, '{}-ManagedADStack'.format(prefix), env=env, props=props)
 props = managed_ad_stack.outputs

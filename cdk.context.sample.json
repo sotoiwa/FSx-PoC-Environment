@@ -4,5 +4,7 @@
   "region": "ap-northeast-1",
   "vpc_cidr": "10.1.0.0/16",
   "key_name": "",
-  "managed_ad_password": ""
+  "managed_ad_password": "",
+  "local_domain_controller_ip": "",
+  "local_domain_controller_ip": ""
 }
