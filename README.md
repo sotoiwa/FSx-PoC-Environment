@@ -100,7 +100,7 @@ cdk deploy *NetworkStack *BastionStack --require-approval never
 ドメインコントローラー用のWindowsと、このドメインの管理下に置くWindowsをデプロイします。
 
 ```
-cdk deploy *LocalDomainStack --require-approval never
+cdk deploy *SelfManagedADStack --require-approval never
 ```
 
 ### ドメインコントローラーの作成
@@ -191,7 +191,7 @@ AWS Managed ADのドメインユーザーは`domain.local\Administrator`です�
 AWS Managed ADと、このドメインの管理下に置くWindowsをデプロイします。
 
 ```
-cdk deploy *ManagedADStack --require-approval never
+cdk deploy *AWSManagedADStack --require-approval never
 ```
 
 ### クライアントWindowsのドメインへの参加
@@ -258,7 +258,8 @@ Self Managed ADに接続するファイルシステムにはドメンコント�
 FSxリソースをデプロイします（かなり時間がかかります）。
 
 ```
-cdk deploy *FSxStack --require-approval never
+cdk deploy *AWSManagedADFSxStack --require-approval never
+cdk deploy *SelfManagedADFSxStack --require-approval never
 ```
 
 ## domain.localのマウント確認
