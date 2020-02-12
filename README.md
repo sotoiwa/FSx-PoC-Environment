@@ -376,6 +376,6 @@ New-ADUser $user -AccountPassword $password
 
 ```powershell
 Get-ADGroup -Filter *
-Add-ADGroupMember -Identity Administrators -Members test
+Add-ADGroupMember -Identity Administrators -Members <ユーザー名>
 Get-ADGroupMember -Identity Administrators
 ```
