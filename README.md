@@ -34,6 +34,11 @@ git --version
 jq --version
 ```
 
+## 確認項目
+
+- Self-Managed AD（domain.local）に参加するWindowsから、Self-Managed AD（domain.local）に接続したFSxをマウントできることを確認する
+- Self-Managed AD（domain.local）に参加するWindowsから、Self-Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+
 ## CDKでのベースインフラストラクチャのデプロイ
 
 ### CDKのインストール
@@ -84,19 +89,26 @@ CDKが使用するバケットを作成します。
 cdk bootstrap
 ```
 
-FSx以外のリソースをデプロイします。
+VPCと踏み台サーバーをデプロイします。
 
 ```
-cdk deploy *NetworkStack *BastionStack *LocalDomainStack *ManagedADStack --require-approval never
+cdk deploy *NetworkStack *BastionStack --require-approval never
 ```
 
-## domain.local
+## Self Managed AD（domain.local）のセットアップ
+
+ドメインコントローラー用のWindowsと、このドメインの管理下に置くWindowsをデプロイします。
+
+```
+cdk deploy *LocalDomainStack --require-approval never
+```
 
 ### ドメインコントローラーの作成
 
 `domain.local`のドメインを作成します。
 
-踏み台サーバーを経由してドメインコントローラー用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+踏み台サーバー（BastionWindows）を経由してドメインコントローラー用のWindows（LocalDomainControllerWindows）にRDPし、PowerShellを起動します。
+あるいは、セッションマネージャーでPowerShellを起動します。
 
 ADドメインサービスの機能をインストールします。
 
@@ -107,7 +119,7 @@ Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
 Get-WindowsFeature
 ```
 
-ドメインコントローラーに昇格させます。
+ドメインコントローラーに昇格させます。セーフモード用のパスワードを聞かれるので入力します。
 
 ```
 #
@@ -141,7 +153,8 @@ aws ec2 describe-instances | \
            .PrivateIpAddress'
 ```
 
-踏み台サーバーを経由してクライアント用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+踏み台サーバーを経由してクライアント用のWindows（LocalDomainClientWindows）にRDPし、PowerShellを起動します。
+あるいは、セッションマネージャーでPowerShellを起動します。
 
 DNSを変更します。
 
@@ -166,7 +179,20 @@ Add-Computer -DomainName domain.local -Credential $Credential
 Restart-Computer -Force
 ```
 
-## corp.example.com
+### クライアントWindowsへのログイン確認
+
+踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
+AWS Managed ADのドメインユーザーは`domain.local\Administrator`です。
+パスワードはドメインコントローラーの`Administrator`ユーザーのパスワードなので、マネジメントコンソールで確認できます。
+上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
+
+## AWS Managed AD（corp.example.com）のセットアップ
+
+AWS Managed ADと、このドメインの管理下に置くWindowsをデプロイします。
+
+```
+cdk deploy *ManagedADStack --require-approval never
+```
 
 ### クライアントWindowsのドメインへの参加
 
@@ -211,9 +237,15 @@ Add-Computer -DomainName corp.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
+### クライアントWindowsへのログイン確認
+
+踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
+AWS Managed ADのドメインユーザーは`corp.example.com\Admin`です。パスワードは`cdk.context.json`で指定してます。
+上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
+
 ## FSxのデプロイ
 
-`cdk.context.json`にdomain.localのドメインコントローラーのIPアドレスと、Administratorのパスワードを記載します。
+`cdk.context.json`に`domain.local`のドメインコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードを記載します。
 
 FSxリソースをデプロイします。
 
