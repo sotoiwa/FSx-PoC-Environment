@@ -141,6 +141,12 @@ Install-ADDSForest `
 -Force:$true
 ```
 
+念のためリブートします。
+
+```
+Restart-Computer -Force
+```
+
 ### クライアントWindowsのドメインへの参加
 
 ドメインコントローラーのIPアドレスを確認します。
@@ -182,9 +188,31 @@ Restart-Computer -Force
 ### クライアントWindowsへのログイン確認
 
 踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
-AWS Managed ADのドメインユーザーは`domain.local\Administrator`です。
+Self Managed ADのドメインユーザーは`Administrator@resource.example.com`です。
 パスワードはドメインコントローラーの`Administrator`ユーザーのパスワードなので、マネジメントコンソールで確認できます。
 上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
+
+### FSxのデプロイ
+
+Self Managed ADに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードが必要なので、`cdk.context.json`に記載します。
+
+FSxリソースをデプロイします（かなり時間がかかります）。
+
+```
+cdk deploy *AWSManagedADFSxStack --require-approval never
+```
+
+### マウント確認
+
+ファイルシステムのDNS名を確認します。
+
+```
+aws fsx describe-file-systems | \
+  jq -r '.FileSystems[] |
+           select( .Tags ) | 
+           select( [ select( .Tags[].Value | test("SelfManagedADFileSystem") ) ] | length > 0 ) | 
+           .DNSName'
+```
 
 ## AWS Managed AD（corp.example.com）のセットアップ
 
@@ -193,6 +221,8 @@ AWS Managed ADと、このドメインの管理下に置くWindowsをデプロ�
 ```
 cdk deploy *AWSManagedADStack --require-approval never
 ```
+
+RDPで接続し、ネットワークドライブを割り当てます。
 
 ### クライアントWindowsのドメインへの参加
 
@@ -240,12 +270,12 @@ Restart-Computer -Force
 ### クライアントWindowsへのログイン確認
 
 踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
-AWS Managed ADのドメインユーザーは`corp.example.com\Admin`です。パスワードは`cdk.context.json`で指定してます。
+AWS Managed ADのドメインユーザーは`Admin@corp.example.com`です。パスワードは`cdk.context.json`で指定してます。
 上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
 
-## FSxのデプロイ
+### FSxのデプロイ
 
-FSxのファイルシステムを2つデプロイします。AWS Managed ADに接続するファイルシステムはディレクトリのIDが必要です。
+AWS Managed ADに接続するファイルシステムはディレクトリのIDが必要です。
 CDK上で取得することもできますが、スタック間の依存を減らしたいので、`cdk.context.json`に記載するようにします。
 
 ```
@@ -253,19 +283,13 @@ aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId'
 ```
 
-Self Managed ADに接続するファイルシステムにはドメンコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードが必要なので、`cdk.context.json`に記載します。
-
 FSxリソースをデプロイします（かなり時間がかかります）。
 
 ```
 cdk deploy *AWSManagedADFSxStack --require-approval never
-cdk deploy *SelfManagedADFSxStack --require-approval never
 ```
 
-## domain.localのマウント確認
-
-- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）に接続したFSxをマウントできることを確認する
-- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+### マウント確認
 
 ファイルシステムのDNS名を確認します。
 
@@ -273,13 +297,15 @@ cdk deploy *SelfManagedADFSxStack --require-approval never
 aws fsx describe-file-systems | \
   jq -r '.FileSystems[] |
            select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("SelfManagedADFileSystem") ) ] | length > 0 ) | 
+           select( [ select( .Tags[].Value | test("AWSManagedADFileSystem") ) ] | length > 0 ) | 
            .DNSName'
 ```
 
 RDPで接続し、ネットワークドライブを割り当てます。
 
-## Active Directoryでのユーザー追加
+## Appendix
+
+### Active Directoryでのユーザー追加
 
 ユーザーを作成します。
 
