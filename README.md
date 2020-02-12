@@ -199,7 +199,7 @@ Self Managed ADに接続するファイルシステムのデプロイにはド�
 FSxリソースをデプロイします（かなり時間がかかります）。
 
 ```
-cdk deploy *AWSManagedADFSxStack --require-approval never
+cdk deploy *SelfManagedADFSxStack --require-approval never
 ```
 
 ### マウント確認
