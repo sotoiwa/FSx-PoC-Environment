@@ -36,8 +36,8 @@ jq --version
 
 ## 確認項目
 
-- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）に接続したFSxをマウントできることを確認する
-- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+- Self Managed AD（resource.example.com）に参加するWindowsから、Self Managed AD（resource.example.com）に接続したFSxをマウントできることを確認する
+- Self Managed AD（resource.example.com）に参加するWindowsから、Self Managed AD（resource.example.com）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
 
 ## CDKでのベースインフラストラクチャのデプロイ
 
@@ -95,7 +95,7 @@ VPCと踏み台サーバーをデプロイします。
 cdk deploy *NetworkStack *BastionStack --require-approval never
 ```
 
-## Self Managed AD（domain.local）のセットアップ
+## Self Managed AD（resource.example.com）のセットアップ
 
 ドメインコントローラー用のWindowsと、このドメインの管理下に置くWindowsをデプロイします。
 
@@ -105,7 +105,7 @@ cdk deploy *SelfManagedADStack --require-approval never
 
 ### ドメインコントローラーの作成
 
-`domain.local`のドメインを作成します。
+`resource.example.com`のドメインを作成します。
 
 踏み台サーバー（BastionWindows）を経由してドメインコントローラー用のWindows（DomainControllerWindows）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
@@ -167,10 +167,10 @@ Get-NetAdapter | Get-DnsClientServerAddress
 ADに参加します。ここで入力するパスワードはマネジメントコンソールでDomainControllerWindowsインスタンスの「接続」から確認します。
 
 ```
-$user = 'domain.local\Administrator'
+$user = 'resource.example.com\Administrator'
 $password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
 $Credential = New-Object System.Management.Automation.PsCredential($user, $password)
-Add-Computer -DomainName domain.local -Credential $Credential
+Add-Computer -DomainName resource.example.com -Credential $Credential
 ```
 
 変更を反映するためリブートします。
