@@ -25,7 +25,7 @@
 - あらかじめ、環境をデプロイするリージョンにキーペアを用意して下さい。このキーペアをEC2インスタンスに設定します。
 - 以下のソフウェアがインストール済みであることを確認して下さい。
 
-```
+```shell
 aws --version
 python3 --version
 node --version
@@ -45,7 +45,7 @@ jq --version
 
 CDKをグローバルにインストールします。
 
-```
+```shell
 npm install -g aws-cdk
 ```
 
@@ -53,7 +53,7 @@ npm install -g aws-cdk
 
 CDKプロジェクトをローカルにクローンします。
 
-```
+```shell
 git clone https://github.com/sotoiwa/FSx-PoC-Environment.git
 cd FSx-PoC-Environment
 ```
@@ -62,14 +62,14 @@ cd FSx-PoC-Environment
 
 Pythonのvirtualenvを作成して有効化します。
 
-```
+```shell
 python3 -m venv .env
 source .env/bin/activate
 ```
 
 必要なpipモジュールをインストールします。
 
-```
+```shell
 pip install -r requirements.txt
 ```
 
@@ -77,7 +77,7 @@ pip install -r requirements.txt
 
 `cdk.context.sample.json`を`cdk.context.json`としてコピーし、パラメータをいい感じに設定して下さい。
 
-```
+```shell
 cp cdk.context.sample.json cdk.context.json
 ```
 
@@ -85,13 +85,13 @@ cp cdk.context.sample.json cdk.context.json
 
 CDKが使用するバケットを作成します。
 
-```
+```shell
 cdk bootstrap
 ```
 
 VPCと踏み台サーバーをデプロイします。
 
-```
+```shell
 cdk deploy *NetworkStack *BastionStack --require-approval never
 ```
 
@@ -99,7 +99,7 @@ cdk deploy *NetworkStack *BastionStack --require-approval never
 
 ドメインコントローラー用のWindowsと、このドメインの管理下に置くWindowsをデプロイします。
 
-```
+```shell
 cdk deploy *SelfManagedADStack --require-approval never
 ```
 
@@ -112,7 +112,7 @@ cdk deploy *SelfManagedADStack --require-approval never
 
 ADドメインサービスの機能をインストールします。
 
-```
+```powershell
 Import-Module ServerManager
 Get-WindowsFeature
 Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
@@ -121,7 +121,7 @@ Get-WindowsFeature
 
 ドメインコントローラーに昇格させます。セーフモード用のパスワードを聞かれるので入力します。
 
-```
+```powershell
 #
 # AD DS 配置用の Windows PowerShell スクリプト
 #
@@ -143,7 +143,7 @@ Install-ADDSForest `
 
 念のためリブートします。
 
-```
+```powershell
 Restart-Computer -Force
 ```
 
@@ -151,7 +151,7 @@ Restart-Computer -Force
 
 ドメインコントローラーのIPアドレスを確認します。
 
-```
+```shell
 aws ec2 describe-instances | \
   jq -r '.Reservations[].Instances[] |
            select( .Tags ) | 
@@ -164,7 +164,7 @@ aws ec2 describe-instances | \
 
 DNSを変更します。
 
-```
+```powershell
 Get-NetAdapter | Get-DnsClientServerAddress
 Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコントローラのIPアドレス>
 Get-NetAdapter | Get-DnsClientServerAddress
@@ -172,7 +172,7 @@ Get-NetAdapter | Get-DnsClientServerAddress
 
 ADに参加します。ここで入力するパスワードはマネジメントコンソールでDomainControllerWindowsインスタンスの「接続」から確認します。
 
-```
+```powershell
 $user = 'resource.example.com\Administrator'
 $password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
 $Credential = New-Object System.Management.Automation.PsCredential($user, $password)
@@ -181,7 +181,7 @@ Add-Computer -DomainName resource.example.com -Credential $Credential
 
 変更を反映するためリブートします。
 
-```
+```powershell
 Restart-Computer -Force
 ```
 
@@ -198,7 +198,7 @@ Self Managed ADに接続するファイルシステムのデプロイにはド�
 
 FSxリソースをデプロイします（かなり時間がかかります）。
 
-```
+```shell
 cdk deploy *SelfManagedADFSxStack --require-approval never
 ```
 
@@ -206,7 +206,7 @@ cdk deploy *SelfManagedADFSxStack --require-approval never
 
 ファイルシステムのDNS名を確認します。
 
-```
+```shell
 aws fsx describe-file-systems | \
   jq -r '.FileSystems[] |
            select( .Tags ) | 
@@ -218,7 +218,7 @@ aws fsx describe-file-systems | \
 
 AWS Managed ADと、このドメインの管理下に置くWindowsをデプロイします。
 
-```
+```shell
 cdk deploy *AWSManagedADStack --require-approval never
 ```
 
@@ -228,7 +228,7 @@ RDPで接続し、ネットワークドライブを割り当てます。
 
 ADのDNSサーバーのアドレスを確認します。
 
-```
+```shell
 aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
 ```
@@ -237,7 +237,7 @@ aws ds describe-directories | \
 
 AD管理に必要なツールをPowerShellでインストールします。
 
-```
+```powershell
 Import-Module ServerManager
 Get-WindowsFeature
 Install-WindowsFeature -Name GPMC,RSAT-AD-Tools,RSAT-DNS-Server
@@ -246,7 +246,7 @@ Get-WindowsFeature
 
 DNSサーバーを変更します。
 
-```
+```powershell
 Get-NetAdapter | Get-DnsClientServerAddress
 Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のDNSアドレス>,<2つ目のDNSアドレス>
 Get-NetAdapter | Get-DnsClientServerAddress
@@ -254,7 +254,7 @@ Get-NetAdapter | Get-DnsClientServerAddress
 
 ADに参加します。`cdk.context.json`に記載したManaged ADのパスワードを入力します。
 
-```
+```powershell
 $user = 'corp.example.com\Admin'
 $password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
 $Credential = New-Object System.Management.Automation.PsCredential($user, $password)
@@ -263,7 +263,7 @@ Add-Computer -DomainName corp.example.com -Credential $Credential
 
 変更を反映するためリブートします。
 
-```
+```powershell
 Restart-Computer -Force
 ```
 
@@ -278,14 +278,14 @@ AWS Managed ADのドメインユーザーは`Admin@corp.example.com`です。パ
 AWS Managed ADに接続するファイルシステムはディレクトリのIDが必要です。
 CDK上で取得することもできますが、スタック間の依存を減らしたいので、`cdk.context.json`に記載するようにします。
 
-```
+```shell
 aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId'
 ```
 
 FSxリソースをデプロイします（かなり時間がかかります）。
 
-```
+```shell
 cdk deploy *AWSManagedADFSxStack --require-approval never
 ```
 
@@ -298,7 +298,7 @@ cdk deploy *AWSManagedADFSxStack --require-approval never
 
 Self Managed AD側で条件付きフォワーダーを作成します。
 
-```
+```powershell
 Get-DnsServerZone
 Add-DnsServerConditionalForwarderZone `
     -Name "corp.example.com" `
@@ -327,7 +327,7 @@ InternalSecurityGroupを探し、インバウンド接続でADのセキュリテ
 
 AWS Managed AS側で、信頼を作成します。
 
-```
+```shell
 TRUST_PASSWORD='Password99!'
 DIRECTORY_ID=$(aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId')
@@ -349,7 +349,7 @@ aws ds create-trust \
 
 ファイルシステムのDNS名を確認します。
 
-```
+```shell
 aws fsx describe-file-systems | \
   jq -r '.FileSystems[] |
            select( .Tags ) | 
@@ -365,7 +365,7 @@ RDPで接続し、ネットワークドライブを割り当てます。
 
 ユーザーを作成します。
 
-```
+```powershell
 Get-ADUser -Filter *
 $user = '<ユーザー名>'
 $password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
@@ -374,7 +374,7 @@ New-ADUser $user -AccountPassword $password
 
 グループに追加します。
 
-```
+```powershell
 Get-ADGroup -Filter *
 Add-ADGroupMember -Identity Administrators -Members test
 Get-ADGroupMember -Identity Administrators
