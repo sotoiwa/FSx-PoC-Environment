@@ -328,7 +328,7 @@ InternalSecurityGroupを探し、インバウンド接続でADのセキュリテ
 AWS Managed AS側で、信頼を作成します。
 
 ```shell
-TRUST_PASSWORD='Password99!'
+TRUST_PASSWORD='<パスワード>'
 DIRECTORY_ID=$(aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId')
 DNS_IP=$(aws ec2 describe-instances | \
