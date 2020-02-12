@@ -36,8 +36,8 @@ jq --version
 
 ## 確認項目
 
-- Self-Managed AD（domain.local）に参加するWindowsから、Self-Managed AD（domain.local）に接続したFSxをマウントできることを確認する
-- Self-Managed AD（domain.local）に参加するWindowsから、Self-Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）に接続したFSxをマウントできることを確認する
+- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
 
 ## CDKでのベースインフラストラクチャのデプロイ
 
@@ -107,7 +107,7 @@ cdk deploy *LocalDomainStack --require-approval never
 
 `domain.local`のドメインを作成します。
 
-踏み台サーバー（BastionWindows）を経由してドメインコントローラー用のWindows（LocalDomainControllerWindows）にRDPし、PowerShellを起動します。
+踏み台サーバー（BastionWindows）を経由してドメインコントローラー用のWindows（DomainControllerWindows）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
 ADドメインサービスの機能をインストールします。
@@ -153,7 +153,7 @@ aws ec2 describe-instances | \
            .PrivateIpAddress'
 ```
 
-踏み台サーバーを経由してクライアント用のWindows（LocalDomainClientWindows）にRDPし、PowerShellを起動します。
+踏み台サーバーを経由してクライアント用のWindows（ClientWindows）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
 DNSを変更します。
@@ -164,7 +164,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコン
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。ここで入力するパスワードはマネジメントコンソールでLocalDomainControllerWindowsインスタンスの「接続」から確認します。
+ADに参加します。ここで入力するパスワードはマネジメントコンソールでDomainControllerWindowsインスタンスの「接続」から確認します。
 
 ```
 $user = 'domain.local\Administrator'
@@ -245,27 +245,34 @@ AWS Managed ADのドメインユーザーは`corp.example.com\Admin`です。パ
 
 ## FSxのデプロイ
 
-`cdk.context.json`に`domain.local`のドメインコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードを記載します。
+FSxのファイルシステムを2つデプロイします。AWS Managed ADに接続するファイルシステムはディレクトリのIDが必要です。
+CDK上で取得することもできますが、スタック間の依存を減らしたいので、`cdk.context.json`に記載するようにします。
 
-FSxリソースをデプロイします。
+```
+aws ds describe-directories | \
+  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId'
+```
+
+Self Managed ADに接続するファイルシステムにはドメンコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードが必要なので、`cdk.context.json`に記載します。
+
+FSxリソースをデプロイします（かなり時間がかかります）。
 
 ```
 cdk deploy *FSxStack --require-approval never
 ```
 
-## ドメインユーザーのRDPの許可
-
-
-
 ## domain.localのマウント確認
 
-DNS名を確認します。
+- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）に接続したFSxをマウントできることを確認する
+- Self Managed AD（domain.local）に参加するWindowsから、Self Managed AD（domain.local）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+
+ファイルシステムのDNS名を確認します。
 
 ```
 aws fsx describe-file-systems | \
   jq -r '.FileSystems[] |
            select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("LocalDomainFileSystem") ) ] | length > 0 ) | 
+           select( [ select( .Tags[].Value | test("SelfManagedADFileSystem") ) ] | length > 0 ) | 
            .DNSName'
 ```
 
@@ -277,8 +284,8 @@ RDPで接続し、ネットワークドライブを割り当てます。
 
 ```
 Get-ADUser -Filter *
-$user = 'test'
-$password = ConvertTo-SecureString -AsPlainText 'Password99!' -Force
+$user = '<ユーザー名>'
+$password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
 New-ADUser $user -AccountPassword $password
 ```
 

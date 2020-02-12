@@ -5,7 +5,7 @@ from aws_cdk import (
 )
 
 
-class LocalDomainStack(core.Stack):
+class SelfManagedADStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, props, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -17,29 +17,31 @@ class LocalDomainStack(core.Stack):
         # https://docs.aws.amazon.com/cdk/api/latest/python/aws_cdk.aws_ec2/Instance.html
 
         # ドメインコントローラ用EC2ホスト
-        local_domain_controller_windows = ec2.Instance(
-            self, 'LocalDomainControllerWindows',
+        domain_controller_windows = ec2.Instance(
+            self, 'DomainControllerWindows',
             instance_type=ec2.InstanceType('t3.large'),
-            machine_image=ec2.WindowsImage(version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
+            machine_image=ec2.MachineImage.latest_windows(
+                version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
             key_name=self.node.try_get_context('key_name'),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),
             security_group=internal_sg
         )
-        local_domain_controller_windows.role.add_managed_policy(
+        domain_controller_windows.role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name('AmazonSSMManagedInstanceCore'))
 
         # クライアント用EC2ホスト
-        local_domain_client_windows = ec2.Instance(
-            self, 'LocalDomainClientWindows',
+        client_windows = ec2.Instance(
+            self, 'ClientWindows',
             instance_type=ec2.InstanceType('t3.large'),
-            machine_image=ec2.WindowsImage(version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
+            machine_image=ec2.MachineImage.latest_windows(
+                version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
             key_name=self.node.try_get_context('key_name'),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),
             security_group=internal_sg
         )
-        local_domain_client_windows.role.add_managed_policy(
+        client_windows.role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name('AmazonSSMManagedInstanceCore'))
 
         self.output_props = props.copy()

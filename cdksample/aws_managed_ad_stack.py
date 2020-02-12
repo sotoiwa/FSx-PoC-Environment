@@ -6,7 +6,7 @@ from aws_cdk import (
 )
 
 
-class ManagedADStack(core.Stack):
+class AWSManagedADStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, props, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -15,10 +15,10 @@ class ManagedADStack(core.Stack):
         internal_sg = props['internal_sg']
 
         # Managed AD
-        managed_ad = directoryservice.CfnMicrosoftAD(
-            self, 'ManagedAD',
+        aws_managed_ad = directoryservice.CfnMicrosoftAD(
+            self, 'AWSManagedAD',
             name='corp.example.com',
-            password=self.node.try_get_context('managed_ad_password'),
+            password=self.node.try_get_context('aws_managed_ad')['admin_password'],
             vpc_settings={
               "subnetIds": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
               "vpcId": vpc.vpc_id
@@ -27,20 +27,21 @@ class ManagedADStack(core.Stack):
         )
 
         # クライアント用EC2ホスト
-        managed_ad_client_windows = ec2.Instance(
-            self, 'ManagedADClientWindows',
+        client_windows = ec2.Instance(
+            self, 'ClientWindows',
             instance_type=ec2.InstanceType('t3.large'),
-            machine_image=ec2.WindowsImage(version=ec2.WindowsVersion.WINDOWS_SERVER_2016_JAPANESE_FULL_BASE),
+            machine_image=ec2.MachineImage.latest_windows(
+                version=ec2.WindowsVersion.WINDOWS_SERVER_2016_JAPANESE_FULL_BASE),
             key_name=self.node.try_get_context('key_name'),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),
             security_group=internal_sg
         )
-        managed_ad_client_windows.role.add_managed_policy(
+        client_windows.role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name('AmazonSSMManagedInstanceCore'))
 
         self.output_props = props.copy()
-        self.output_props['managed_ad'] = managed_ad
+        self.output_props['aws_managed_ad'] = aws_managed_ad
 
     @property
     def outputs(self):

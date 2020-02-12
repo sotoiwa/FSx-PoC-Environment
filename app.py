@@ -4,9 +4,10 @@ from aws_cdk import core
 
 from cdksample.network_stack import NetworkStack
 from cdksample.bastion_stack import BastionStack
-from cdksample.local_domain_stack import LocalDomainStack
-from cdksample.managed_ad_stack import ManagedADStack
-from cdksample.fsx_stack import FSxStack
+from cdksample.self_managed_ad_stack import SelfManagedADStack
+from cdksample.aws_managed_ad_stack import AWSManagedADStack
+from cdksample.self_managed_ad_fsx_stack import SelfManagedADFSxStack
+from cdksample.aws_managed_ad_fsx_stack import AWSManagedADFSxStack
 
 
 app = core.App()
@@ -23,13 +24,16 @@ props = network_stack.outputs
 bastion_windows_stack = BastionStack(app, '{}-BastionStack'.format(prefix), env=env, props=props)
 props = bastion_windows_stack.outputs
 
-local_domain_stack = LocalDomainStack(app, '{}-LocalDomainStack'.format(prefix), env=env, props=props)
-props = local_domain_stack.outputs
+self_managed_ad_stack = SelfManagedADStack(app, '{}-SelfManagedADStack'.format(prefix), env=env, props=props)
+props = self_managed_ad_stack.outputs
 
-managed_ad_stack = ManagedADStack(app, '{}-ManagedADStack'.format(prefix), env=env, props=props)
-props = managed_ad_stack.outputs
+aws_managed_ad_stack = AWSManagedADStack(app, '{}-AWSManagedADStack'.format(prefix), env=env, props=props)
+props = aws_managed_ad_stack.outputs
 
-fsx_stack = FSxStack(app, '{}-FSxStack'.format(prefix), env=env, props=props)
-props = fsx_stack.outputs
+local_domain_fsx_stack = SelfManagedADFSxStack(app, '{}-SelfManagedADFSxStack'.format(prefix), env=env, props=props)
+props = local_domain_fsx_stack.outputs
+
+aws_managed_ad_fsx_stack = AWSManagedADFSxStack(app, '{}-AWSManagedADFSxStack'.format(prefix), env=env, props=props)
+props = aws_managed_ad_fsx_stack.outputs
 
 app.synth()
