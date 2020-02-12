@@ -1,5 +1,5 @@
 {
-  "stack_prefix": "FSx-",
+  "stack_prefix": "FSx",
   "account": "",
   "region": "ap-northeast-1",
   "vpc_cidr": "10.1.0.0/16",
