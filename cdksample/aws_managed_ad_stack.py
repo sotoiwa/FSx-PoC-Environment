@@ -17,7 +17,7 @@ class AWSManagedADStack(core.Stack):
         # Managed AD
         aws_managed_ad = directoryservice.CfnMicrosoftAD(
             self, 'AWSManagedAD',
-            name='corp.example.com',
+            name=self.node.try_get_context('aws_managed_ad')['domain_name'],
             password=self.node.try_get_context('aws_managed_ad')['admin_password'],
             vpc_settings={
               "subnetIds": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,

@@ -25,7 +25,7 @@ class SelfManagedADFSxStack(core.Stack):
                     "dnsIps": [
                         self.node.try_get_context('self_managed_ad')['domain_controller_ip']
                     ],
-                    "domainName": "domain.local",
+                    "domainName": self.node.try_get_context('self_managed_ad')['domain_name'],
                     "userName": "Administrator",
                     "password": self.node.try_get_context('self_managed_ad')['admin_password']
                 },

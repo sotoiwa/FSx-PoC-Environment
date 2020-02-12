@@ -248,7 +248,7 @@ DNSサーバーを変更します。
 
 ```
 Get-NetAdapter | Get-DnsClientServerAddress
-Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のIPアドレス>,<2つ目のIPアドレス>
+Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のDNSアドレス>,<2つ目のDNSアドレス>
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
@@ -287,6 +287,62 @@ FSxリソースをデプロイします（かなり時間がかかります）�
 
 ```
 cdk deploy *AWSManagedADFSxStack --require-approval never
+```
+
+### 信頼関係の作成
+
+- [Tutorial: Create a Trust Relationship Between Your AWS Managed Microsoft AD and Your On-Premises Domain](https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust.html)
+- [オンプレの AD DS と AWS の Microsoft AD 間で片方向信頼関係を結ぶ](https://www.vwnet.jp/Windows/Other/2017020601/AWS_MSAD_trust.htm)
+
+#### Self Managed AD側の作業
+
+Self Managed AD側で条件付きフォワーダーを作成します。
+
+```
+Get-DnsServerZone
+Add-DnsServerConditionalForwarderZone `
+    -Name "corp.example.com" `
+    -MasterServers <1つ目のDNSアドレス>,<2つ目のDNSアドレス> `
+    -ReplicationScope "Forest"
+Get-DnsServerZone
+```
+
+Self Managed AD側で入力方向の一方向の信頼関係を作成します。ここをPowerShellでやるのは大変なので（New-ADTrustのようなコマンドがない）、GUIでやります。
+
+「Active Directory ドメインと信頼関係」から「新しい信頼」を作成します。
+
+|項目|値|備考|
+|---|---|---|
+|信頼の名前|corp.example.com||
+|信頼の種類|フォレストの信頼||
+|信頼の方向|一方向: 入力方向||
+|信頼を作成する対象|このドメインのみ||
+|信頼パスワード|（任意）Password99!||
+|入力方向の信頼を確認しますか?|確認しない||
+
+#### AWS Managed AD側の作業
+
+ADのセキュリティグループを探し、アウトバウンド接続でInternalSecurityGroupへの接続を全て許可します。
+InternalSecurityGroupを探し、インバウンド接続でADのセキュリティグループからの接続を全て許可します。
+
+AWS Managed AS側で、信頼を作成します。
+
+```
+TRUST_PASSWORD='Password99!'
+DIRECTORY_ID=$(aws ds describe-directories | \
+  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId')
+DNS_IP=$(aws ec2 describe-instances | \
+  jq -r '.Reservations[].Instances[] |
+           select( .Tags ) | 
+           select( [ select( .Tags[].Value | test("DomainControllerWindows") ) ] | length > 0 ) | 
+           .PrivateIpAddress')
+aws ds create-trust \
+  --directory-id ${DIRECTORY_ID} \
+  --remote-domain-name resource.example.com \
+  --trust-password ${TRUST_PASSWORD} \
+  --trust-direction "One-Way: Outgoing" \
+  --trust-type "Forest" \
+  --conditional-forwarder-ip-addrs ${DNS_IP}
 ```
 
 ### マウント確認
