@@ -188,7 +188,8 @@ Self Managed ADのドメインユーザーは`Administrator@resource.example.com
 
 ### FSxのデプロイ
 
-Self Managed ADに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、`Administrator`ユーザーのパスワードが必要なので、`cdk.context.json`に記載します。
+Self Managed ADに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、接続に使用するユーザーとパスワードが必要です。
+`cdk.context.json`に記載します。
 
 FSxリソースをデプロイします（かなり時間がかかります）。
 

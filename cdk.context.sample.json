@@ -12,6 +12,7 @@
   "self_managed_ad": {
     "domain_name": "resource.example.com",
     "domain_controller_ip": "",
-    "admin_password": ""
+    "username": "Administrator",
+    "password": ""
   }
 }

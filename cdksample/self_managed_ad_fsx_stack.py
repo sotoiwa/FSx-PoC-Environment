@@ -26,8 +26,8 @@ class SelfManagedADFSxStack(core.Stack):
                         self.node.try_get_context('self_managed_ad')['domain_controller_ip']
                     ],
                     "domainName": self.node.try_get_context('self_managed_ad')['domain_name'],
-                    "userName": "Administrator",
-                    "password": self.node.try_get_context('self_managed_ad')['admin_password']
+                    "userName": self.node.try_get_context('self_managed_ad')['username'],
+                    "password": self.node.try_get_context('self_managed_ad')['password']
                 },
                 "deploymentType": "MULTI_AZ_1",
                 "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],
