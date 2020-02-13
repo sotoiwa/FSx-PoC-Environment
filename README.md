@@ -141,7 +141,7 @@ Install-ADDSForest `
 -Force:$true
 ```
 
-### クライアントWindowsのドメインへの参加
+### メンバーWindowsのドメインへの参加
 
 ドメインコントローラーのIPアドレスを確認します。
 
@@ -153,7 +153,7 @@ aws ec2 describe-instances | \
            .PrivateIpAddress'
 ```
 
-踏み台サーバーを経由してクライアント用のWindows（ClientWindows）にRDPし、PowerShellを起動します。
+踏み台サーバーを経由してメンバー用のWindows（MemberWindows）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
 DNSを変更します。
@@ -179,12 +179,12 @@ Add-Computer -DomainName resource.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
-### クライアントWindowsへのログイン確認
+### メンバーWindowsへのログイン確認
 
-踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
+踏み台サーバーから、メンバーWindowsにドメインユーザーでRDPできることを確認します。
 Self Managed ADのドメインユーザーは`Administrator@resource.example.com`です。
 パスワードはドメインコントローラーの`Administrator`ユーザーのパスワードなので、マネジメントコンソールで確認できます。
-上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
+上手くいかないときはドメインコントローラーとメンバーを再起動してみてください。
 
 ### FSxのデプロイ
 
@@ -208,17 +208,17 @@ aws fsx describe-file-systems | \
            .DNSName'
 ```
 
+RDPで接続し、ネットワークドライブを割り当てます。
+
 ## AWS Managed AD（corp.example.com）のセットアップ
 
-AWS Managed ADと、このドメインの管理下に置くWindowsをデプロイします。
+AWS Managed ADと、このドメインの管理下に置くメンバーWindowsをデプロイします。
 
 ```shell
 cdk deploy *AWSManagedADStack --require-approval never
 ```
 
-RDPで接続し、ネットワークドライブを割り当てます。
-
-### クライアントWindowsのドメインへの参加
+### メンバーWindowsのドメインへの参加
 
 ADのDNSサーバーのアドレスを確認します。
 
@@ -227,7 +227,7 @@ aws ds describe-directories | \
   jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
 ```
 
-踏み台サーバーを経由してクライアント用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
+踏み台サーバーを経由してメンバー用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
 
 AD管理に必要なツールをPowerShellでインストールします。
 
@@ -261,9 +261,9 @@ Add-Computer -DomainName corp.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
-### クライアントWindowsへのログイン確認
+### メンバーWindowsへのログイン確認
 
-踏み台サーバーから、クライアントWindowsにドメインユーザーでRDPできることを確認します。
+踏み台サーバーから、メンバーWindowsにドメインユーザーでRDPできることを確認します。
 AWS Managed ADのドメインユーザーは`Admin@corp.example.com`です。パスワードは`cdk.context.json`で指定してます。
 上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
 
@@ -301,7 +301,8 @@ Add-DnsServerConditionalForwarderZone `
 Get-DnsServerZone
 ```
 
-Self Managed AD側で入力方向の一方向の信頼関係を作成します。ここをPowerShellでやるのは大変なので（New-ADTrustのようなコマンドがない）、GUIでやります。
+Self Managed AD側で入力方向の一方向の信頼関係を作成します。
+ここをPowerShellでやるのは大変なので（New-ADTrustのようなコマンドがない）、GUIでやります。
 
 「Active Directory ドメインと信頼関係」から「新しい信頼」を作成します。
 
