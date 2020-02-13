@@ -26,9 +26,9 @@ class AWSManagedADStack(core.Stack):
             edition='Standard'
         )
 
-        # クライアント用EC2ホスト
-        client_windows = ec2.Instance(
-            self, 'ClientWindows',
+        # メンバー用EC2ホスト
+        member_windows = ec2.Instance(
+            self, 'MemberWindows',
             instance_type=ec2.InstanceType('t3.large'),
             machine_image=ec2.MachineImage.latest_windows(
                 version=ec2.WindowsVersion.WINDOWS_SERVER_2016_JAPANESE_FULL_BASE),
@@ -37,7 +37,7 @@ class AWSManagedADStack(core.Stack):
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),
             security_group=internal_sg
         )
-        client_windows.role.add_managed_policy(
+        member_windows.role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name('AmazonSSMManagedInstanceCore'))
 
         self.output_props = props.copy()

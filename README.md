@@ -141,12 +141,6 @@ Install-ADDSForest `
 -Force:$true
 ```
 
-念のためリブートします。
-
-```powershell
-Restart-Computer -Force
-```
-
 ### クライアントWindowsのドメインへの参加
 
 ドメインコントローラーのIPアドレスを確認します。
