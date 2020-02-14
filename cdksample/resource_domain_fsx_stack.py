@@ -5,7 +5,7 @@ from aws_cdk import (
 )
 
 
-class SelfManagedADFSxStack(core.Stack):
+class ResourceDomainFSxStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, props, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -14,8 +14,8 @@ class SelfManagedADFSxStack(core.Stack):
         internal_sg = props['internal_sg']
 
         # Self Managed ADに接続するFSx
-        self_managed_ad_fs = fsx.CfnFileSystem(
-            self, 'SelfManagedADFileSystem',
+        fs1 = fsx.CfnFileSystem(
+            self, 'FileSystem1',
             file_system_type='WINDOWS',
             subnet_ids=vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids,
             security_group_ids=[internal_sg.security_group_id],
@@ -23,11 +23,11 @@ class SelfManagedADFSxStack(core.Stack):
             windows_configuration={
                 "selfManagedActiveDirectoryConfiguration": {
                     "dnsIps": [
-                        self.node.try_get_context('self_managed_ad')['domain_controller_ip']
+                        self.node.try_get_context('resource_domain')['domain_controller_ip']
                     ],
-                    "domainName": self.node.try_get_context('self_managed_ad')['domain_name'],
-                    "userName": self.node.try_get_context('self_managed_ad')['username'],
-                    "password": self.node.try_get_context('self_managed_ad')['password']
+                    "domainName": self.node.try_get_context('resource_domain')['domain_name'],
+                    "userName": self.node.try_get_context('resource_domain')['username'],
+                    "password": self.node.try_get_context('resource_domain')['password']
                 },
                 "deploymentType": "MULTI_AZ_1",
                 "preferredSubnetId": vpc.select_subnets(subnet_type=ec2.SubnetType.ISOLATED).subnet_ids[0],

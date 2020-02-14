@@ -9,3 +9,4 @@ __pycache__/
 cdk.out/
 cdk.context.json
 setup-DFSN-servers.*
+password.*

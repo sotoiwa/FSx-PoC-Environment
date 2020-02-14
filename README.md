@@ -15,29 +15,22 @@
 - [FSx CLI](https://docs.aws.amazon.com/cli/latest/reference/fsx/index.html)
 - [FSx API](https://docs.aws.amazon.com/fsx/latest/APIReference/welcome.html)
 - [Getting Started with Amazon FSx](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/getting-started.html)
-- [AWS Managed Microsoft AD のグループポリシーを使用して、ドメインユーザーに EC2 Windows インスタンスへの RDP アクセスを許可する方法を教えてください。](https://aws.amazon.com/jp/premiumsupport/knowledge-center/ec2-domain-user-rdp/)
-- [AWS Managed Microsoft AD のユーザーとグループを管理する](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/ms_ad_manage_users_groups.html)
-- [Windows インスタンスを手動で参加させる](https://docs.aws.amazon.com/ja_jp/directoryservice/latest/admin-guide/join_windows_instance.html)
 
 ## 前提
 
 - デプロイは管理者権限を持つIAMユーザーの権限で行うため、IAMユーザーを用意して下さい。
 - あらかじめ、環境をデプロイするリージョンにキーペアを用意して下さい。このキーペアをEC2インスタンスに設定します。
 - 以下のソフウェアがインストール済みであることを確認して下さい。
-
-```shell
-aws --version
-python3 --version
-node --version
-npm --version
-git --version
-jq --version
-```
-
-## 確認項目
-
-- Self Managed AD（resource.example.com）に参加するWindowsから、Self Managed AD（resource.example.com）に接続したFSxをマウントできることを確認する
-- Self Managed AD（resource.example.com）に参加するWindowsから、Self Managed AD（resource.example.com）と信頼関係を結んだAWS Managed AD（corp.example.com）に接続したFSxをマウントできることを確認する
+    ```shell
+    aws --version
+    python3 --version
+    node --version
+    npm --version
+    git --version
+    jq --version
+    ```
+- 上記環境を整えるのが面倒な場合はCloud9の利用がお奨めです。以下の手順を参考にCloud9をセットアップしてください。
+  - [Cloud9環境のセットアップ](https://github.com/sotoiwa/Analytics-PoC-Environment/blob/master/cloud9.md)
 
 ## CDKでのベースインフラストラクチャのデプロイ
 
@@ -89,25 +82,25 @@ CDKが使用するバケットを作成します。
 cdk bootstrap
 ```
 
-VPCと踏み台サーバーをデプロイします。
+VPCと踏み台インスタンスをデプロイします。
 
 ```shell
 cdk deploy *NetworkStack *BastionStack --require-approval never
 ```
 
-## Self Managed AD（resource.example.com）のセットアップ
+## resource.example.com（Self-managed AD）のセットアップ
 
-ドメインコントローラー用のWindowsと、このドメインの管理下に置くWindowsをデプロイします。
+ドメインコントローラー用のWindowsインスタンスと、このドメインの管理下に置くメンバー用のWindowsインスタンスをデプロイします。
 
 ```shell
-cdk deploy *SelfManagedADStack --require-approval never
+cdk deploy *ResourceDomainStack --require-approval never
 ```
 
 ### ドメインコントローラーの作成
 
 `resource.example.com`のドメインを作成します。
 
-踏み台サーバー（BastionWindows）を経由してドメインコントローラー用のWindows（DomainControllerWindows）にRDPし、PowerShellを起動します。
+踏み台インスタンス（BastionStack/Bastion）を経由してドメインコントローラーインスタンス（ResourceDomainStack/DomainController）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
 ADドメインサービスの機能をインストールします。
@@ -141,7 +134,9 @@ Install-ADDSForest `
 -Force:$true
 ```
 
-### メンバーWindowsのドメインへの参加
+自動的に再起動するのでしばらく待ちます。
+
+### メンバーのドメインへの参加
 
 ドメインコントローラーのIPアドレスを確認します。
 
@@ -149,14 +144,14 @@ Install-ADDSForest `
 aws ec2 describe-instances | \
   jq -r '.Reservations[].Instances[] |
            select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("DomainControllerWindows") ) ] | length > 0 ) | 
+           select( [ select( .Tags[].Value | test("ResourceDomain") and test("DomainController") ) ] | length > 0 ) | 
            .PrivateIpAddress'
 ```
 
-踏み台サーバーを経由してメンバー用のWindows（MemberWindows）にRDPし、PowerShellを起動します。
+踏み台インスタンスを経由してメンバーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
-DNSを変更します。
+DNSサーバーを変更します。
 
 ```powershell
 Get-NetAdapter | Get-DnsClientServerAddress
@@ -164,7 +159,7 @@ Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <ドメインコン
 Get-NetAdapter | Get-DnsClientServerAddress
 ```
 
-ADに参加します。ここで入力するパスワードはマネジメントコンソールでDomainControllerWindowsインスタンスの「接続」から確認します。
+ADに参加します。ここで入力するパスワードはマネジメントコンソールでドメインコントローラーインスタンスの「接続」から確認します。
 
 ```powershell
 $user = 'resource.example.com\Administrator'
@@ -179,27 +174,203 @@ Add-Computer -DomainName resource.example.com -Credential $Credential
 Restart-Computer -Force
 ```
 
-### メンバーWindowsへのログイン確認
+### メンバーインスタンスへのログイン確認
 
-踏み台サーバーから、メンバーWindowsにドメインユーザーでRDPできることを確認します。
-Self Managed ADのドメインユーザーは`Administrator@resource.example.com`です。
-パスワードはドメインコントローラーの`Administrator`ユーザーのパスワードなので、マネジメントコンソールで確認できます。
-上手くいかないときはドメインコントローラーとメンバーを再起動してみてください。
+踏み台インスタンスから、メンバーインスタンスに`Administrator@resource.example.com`でRDPできることを確認します。
+このユーザーのパスワードはドメインコントローラーの`Administrator`ユーザーのパスワードなので、マネジメントコンソールで確認できます。
 
-### FSxのデプロイ
+## japan.example.com（Self-managed AD）のセットアップ
 
-Self Managed ADに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、接続に使用するユーザーとパスワードが必要です。
-`cdk.context.json`に記載します。
+ドメインコントローラー用のWindowsインスタンスをデプロイします。
+
+```shell
+cdk deploy *JapanDomainStack --require-approval never
+```
+
+### ドメインコントローラーの作成
+
+`japan.example.com`のドメインを作成します。
+
+踏み台インスタンスを経由してドメインコントローラーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
+あるいは、セッションマネージャーでPowerShellを起動します。
+
+ADドメインサービスの機能をインストールします。
+
+```powershell
+Import-Module ServerManager
+Get-WindowsFeature
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+Get-WindowsFeature
+```
+
+ドメインコントローラーに昇格させます。セーフモード用のパスワードを聞かれるので入力します。
+
+```powershell
+#
+# AD DS 配置用の Windows PowerShell スクリプト
+#
+
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "Win2012R2" `
+-DomainName "japan.example.com" `
+-DomainNetbiosName "JAPAN" `
+-ForestMode "Win2012R2" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-Force:$true
+```
+
+自動的に再起動するのでしばらく待ちます。
+
+### ユーザーの作成
+
+踏み台インスタンスを経由してドメインコントローラーインスタンスにRDPし、PowerShellを起動します。
+あるいは、セッションマネージャーでPowerShellを起動します。
+
+ユーザーを作成します。
+
+```powershell
+Get-ADUser -Filter *
+$user = 'user1'
+$password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
+New-ADUser $user -AccountPassword $password -Enabled $true -PasswordNeverExpires $true
+Get-ADUser -Filter *
+```
+
+Administratorsグループに追加します。
+
+```powershell
+Get-ADGroup -Filter *
+Add-ADGroupMember -Identity Administrators -Members $user
+Get-ADGroupMember -Identity Administrators
+Get-ADGroup -Filter *
+```
+
+### ドメインコントローラーへのログイン確認
+
+踏み台インスタンスから、ドメインコントローラーに`user1@japan.example.com`でRDPできることを確認します。
+
+## 信頼関係の作成
+
+RESOURCEドメインとJAPANドメインで双方向の信頼関係を結びます。
+
+- [Tutorial: Create a Trust Relationship Between Your AWS Managed Microsoft AD and Your On-Premises Domain](https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust.html)
+- [オンプレの AD DS と AWS の Microsoft AD 間で片方向信頼関係を結ぶ](https://www.vwnet.jp/Windows/Other/2017020601/AWS_MSAD_trust.htm)
+
+### 条件付きフォワーダーの作成
+
+#### RESOURCEドメイン
+
+resource.example.comのドメインコントローラーで以下の作業を実施します。
+
+```powershell
+Get-DnsServerZone
+Add-DnsServerConditionalForwarderZone `
+    -Name "japan.example.com" `
+    -MasterServers <RESOURCEのドメインコントローラーのアドレス> `
+    -ReplicationScope "Forest"
+Get-DnsServerZone
+```
+
+#### JAPANドメイン
+
+japan.example.comのドメインコントローラーで以下の作業を実施します。
+
+```powershell
+Get-DnsServerZone
+Add-DnsServerConditionalForwarderZone `
+    -Name "resource.example.com" `
+    -MasterServers <JAPANのドメインコントローラーのアドレス> `
+    -ReplicationScope "Forest"
+Get-DnsServerZone
+```
+
+### 信頼関係の作成 
+
+この作業をPowerShellでやるのは難しいのでここはGUIを使います。
+
+#### RESOURCEドメイン
+
+resource.example.comのドメインコントローラーで以下の作業を実施します。
+
+1. サーバーマネージャーの右上のツールから「Active Directory ドメインと信頼関係」を開きます。
+1. 左のペインでドメイン名を右クリックしてプロパティを開きます。
+1. 信頼タブで「新しい信頼」を作成します。以下の選択肢がでない場合はしばらく待ってから作業を実施してください。
+
+    |項目|値|備考|
+    |---|---|---|
+    |信頼の名前|japan.example.com||
+    |信頼の種類|フォレストの信頼||
+    |信頼の方向|双方向||
+    |信頼を作成する対象|このドメインのみ||
+    |出力方向の信頼認証レベル|フォレスト全体の認証||
+    |信頼パスワード|（任意）||
+    |出力方向の信頼を確認しますか?|確認しない||
+    |入力方向の信頼を確認しますか?|確認しない||
+
+作成した信頼はPowerShellで確認できます。
+
+```powershell
+Get-ADTrust -Filter *
+```
+
+#### JAPANドメイン
+
+japan.example.comのドメインコントローラーで以下の作業を実施します。
+
+1. サーバーマネージャーの右上のツールから「Active Directory ドメインと信頼関係」を開きます。
+1. 左のペインでドメイン名を右クリックしてプロパティを開きます。
+1. 信頼タブで「新しい信頼」を作成します。以下の選択肢がでない場合はしばらく待ってみて下さい。
+
+    |項目|値|備考|
+    |---|---|---|
+    |信頼の名前|resource.example.com||
+    |信頼の種類|フォレストの信頼||
+    |信頼の方向|双方向||
+    |信頼を作成する対象|このドメインのみ||
+    |出力方向の信頼認証レベル|フォレスト全体の認証||
+    |信頼パスワード|（任意）||
+    |出力方向の信頼を確認しますか?|確認しない||
+    |入力方向の信頼を確認しますか?|確認しない||
+
+作成した信頼はPowerShellで確認できます。
+
+```powershell
+Get-ADTrust -Filter *
+```
+
+### メンバーインスタンスでのリモートデスクトップ接続の許可
+
+AD環境であっても、メンバーインスタンスではAdministratorsグループやRemote Desktop Usersグループはローカルグループであり、マシンごとに異なるグループです。
+メンバーインスタンスに`Administrator@resource.example.com`でRDPし、`user1@japan.example.com`のリモートデスクトップ接続を許可します。
+
+1. スタートボタンを右クリックして「システム」を選択します。
+1. 左のメニューで「リモートの設定」をクリックします。
+1. 「リモート」タブで「ユーザーの選択」をクリックし、`user1@japan.example.com`を追加します。見つからないときはしばらく待ってみて下さい。
+
+### メンバーインスタンスへのログイン確認
+
+踏み台インスタンスから、メンバーインスタンスに`user1@japan.example.com`でRDPできることを確認します。
+
+## FSxのデプロイ
+
+resource.example.comに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、接続に使用するユーザーとパスワードが必要です。
+`cdk.context.json`に記載します。本来は権限を絞ったユーザーで接続するべきですが、検証なのでAdministratorを使います。
 
 FSxリソースをデプロイします（かなり時間がかかります）。
 
 ```shell
-cdk deploy *SelfManagedADFSxStack --require-approval never
+cdk deploy *ResourceDomainFSxStack --require-approval never
 ```
 
 ### マウント確認
 
-ファイルシステムのDNS名を確認します。
+FSxのファイルシステムのDNS名を確認します。
 
 ```shell
 aws fsx describe-file-systems | \
@@ -209,169 +380,8 @@ aws fsx describe-file-systems | \
            .DNSName'
 ```
 
-RDPで接続し、ネットワークドライブを割り当てます。
-
-## AWS Managed AD（corp.example.com）のセットアップ
-
-AWS Managed ADと、このドメインの管理下に置くメンバーWindowsをデプロイします。
-
-```shell
-cdk deploy *AWSManagedADStack --require-approval never
-```
-
-### メンバーWindowsのドメインへの参加
-
-ADのDNSサーバーのアドレスを確認します。
-
-```shell
-aws ds describe-directories | \
-  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DnsIpAddrs[]'
-```
-
-踏み台サーバーを経由してメンバー用のWindowsにRDPし、PowerShellを起動します。あるいは、セッションマネージャーでPowerShellを起動します。
-
-AD管理に必要なツールをPowerShellでインストールします。
+メンバーインスタンスに`user1@japan.example.com`でRDPし、FSxのファイルシステムにネットワークドライブを割り当てます。
 
 ```powershell
-Import-Module ServerManager
-Get-WindowsFeature
-Install-WindowsFeature -Name GPMC,RSAT-AD-Tools,RSAT-DNS-Server
-Get-WindowsFeature
-```
-
-DNSサーバーを変更します。
-
-```powershell
-Get-NetAdapter | Get-DnsClientServerAddress
-Get-NetAdapter | Set-DnsClientServerAddress -ServerAddresses <1つ目のDNSアドレス>,<2つ目のDNSアドレス>
-Get-NetAdapter | Get-DnsClientServerAddress
-```
-
-ADに参加します。`cdk.context.json`に記載したAWS Managed ADのパスワードを入力します。
-
-```powershell
-$user = 'corp.example.com\Admin'
-$password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
-$Credential = New-Object System.Management.Automation.PsCredential($user, $password)
-Add-Computer -DomainName corp.example.com -Credential $Credential
-```
-
-変更を反映するためリブートします。
-
-```powershell
-Restart-Computer -Force
-```
-
-### メンバーWindowsへのログイン確認
-
-踏み台サーバーから、メンバーWindowsにドメインユーザーでRDPできることを確認します。
-AWS Managed ADのドメインユーザーは`Admin@corp.example.com`です。パスワードは`cdk.context.json`で指定してます。
-上手くいかないときはドメインコントローラーとクライアントを再起動してみてください。
-
-### FSxのデプロイ
-
-AWS Managed ADに接続するファイルシステムはディレクトリのIDが必要です。
-CDK上で取得することもできますが、スタック間の依存を減らしたいので、`cdk.context.json`に記載するようにします。
-
-```shell
-aws ds describe-directories | \
-  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId'
-```
-
-FSxリソースをデプロイします（かなり時間がかかります）。
-
-```shell
-cdk deploy *AWSManagedADFSxStack --require-approval never
-```
-
-### 信頼関係の作成
-
-- [Tutorial: Create a Trust Relationship Between Your AWS Managed Microsoft AD and Your On-Premises Domain](https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust.html)
-- [オンプレの AD DS と AWS の Microsoft AD 間で片方向信頼関係を結ぶ](https://www.vwnet.jp/Windows/Other/2017020601/AWS_MSAD_trust.htm)
-
-#### Self Managed AD側の作業
-
-Self Managed AD側で条件付きフォワーダーを作成します。
-
-```powershell
-Get-DnsServerZone
-Add-DnsServerConditionalForwarderZone `
-    -Name "corp.example.com" `
-    -MasterServers <1つ目のDNSアドレス>,<2つ目のDNSアドレス> `
-    -ReplicationScope "Forest"
-Get-DnsServerZone
-```
-
-Self Managed AD側で入力方向の一方向の信頼関係を作成します。
-ここをPowerShellでやるのは大変なので（New-ADTrustのようなコマンドがない）、GUIでやります。
-
-「Active Directory ドメインと信頼関係」から「新しい信頼」を作成します。
-
-|項目|値|備考|
-|---|---|---|
-|信頼の名前|corp.example.com||
-|信頼の種類|フォレストの信頼||
-|信頼の方向|一方向: 入力方向||
-|信頼を作成する対象|このドメインのみ||
-|信頼パスワード|（任意）||
-|入力方向の信頼を確認しますか?|確認しない||
-
-#### AWS Managed AD側の作業
-
-ADのセキュリティグループを探し、アウトバウンド接続でInternalSecurityGroupへの接続を全て許可します。
-InternalSecurityGroupを探し、インバウンド接続でADのセキュリティグループからの接続を全て許可します。
-
-AWS Managed AS側で、信頼を作成します。
-
-```shell
-TRUST_PASSWORD='<パスワード>'
-DIRECTORY_ID=$(aws ds describe-directories | \
-  jq -r '.DirectoryDescriptions[] | select( .Name == "corp.example.com" ) | .DirectoryId')
-DNS_IP=$(aws ec2 describe-instances | \
-  jq -r '.Reservations[].Instances[] |
-           select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("DomainControllerWindows") ) ] | length > 0 ) | 
-           .PrivateIpAddress')
-aws ds create-trust \
-  --directory-id ${DIRECTORY_ID} \
-  --remote-domain-name resource.example.com \
-  --trust-password ${TRUST_PASSWORD} \
-  --trust-direction "One-Way: Outgoing" \
-  --trust-type "Forest" \
-  --conditional-forwarder-ip-addrs ${DNS_IP}
-```
-
-### マウント確認
-
-ファイルシステムのDNS名を確認します。
-
-```shell
-aws fsx describe-file-systems | \
-  jq -r '.FileSystems[] |
-           select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("AWSManagedADFileSystem") ) ] | length > 0 ) | 
-           .DNSName'
-```
-
-RDPで接続し、ネットワークドライブを割り当てます。
-
-## Appendix
-
-### Active Directoryでのユーザー追加
-
-ユーザーを作成します。
-
-```powershell
-Get-ADUser -Filter *
-$user = '<ユーザー名>'
-$password = ConvertTo-SecureString -AsPlainText '<パスワード>' -Force
-New-ADUser $user -AccountPassword $password
-```
-
-グループに追加します。
-
-```powershell
-Get-ADGroup -Filter *
-Add-ADGroupMember -Identity Administrators -Members <ユーザー名>
-Get-ADGroupMember -Identity Administrators
+net use z: \\<ファイルシステムのDNS名>\share
 ```

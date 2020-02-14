@@ -14,12 +14,9 @@ class BastionStack(core.Stack):
         internal_sg = props['internal_sg']
         bastion_sg = props['bastion_sg']
 
-        # EC2の作成
-        # https://docs.aws.amazon.com/cdk/api/latest/python/aws_cdk.aws_ec2/Instance.html
-
         # Bastion用EC2ホスト
         bastion_windows = ec2.Instance(
-            self, 'BastionWindows',
+            self, 'Bastion',
             instance_type=ec2.InstanceType('t3.large'),
             machine_image=ec2.MachineImage.latest_windows(
                 version=ec2.WindowsVersion.WINDOWS_SERVER_2019_JAPANESE_FULL_BASE),
