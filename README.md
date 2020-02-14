@@ -376,12 +376,13 @@ FSxのファイルシステムのDNS名を確認します。
 aws fsx describe-file-systems | \
   jq -r '.FileSystems[] |
            select( .Tags ) | 
-           select( [ select( .Tags[].Value | test("SelfManagedADFileSystem") ) ] | length > 0 ) | 
+           select( [ select( .Tags[].Value | test("ResourceDomainFSxStack") ) ] | length > 0 ) | 
            .DNSName'
 ```
 
 メンバーインスタンスに`user1@japan.example.com`でRDPし、FSxのファイルシステムにネットワークドライブを割り当てます。
+`¥`と`\`の違い（Windows上では同じに見える）でエラーになっていたことがあったので注意。マネジメントコンソールで「Attach」ボタンを押してコマンドを取得した方が確実です。
 
 ```powershell
-net use z: \\<ファイルシステムのDNS名>\share
+net use z: \\<DNS名>\share
 ```
