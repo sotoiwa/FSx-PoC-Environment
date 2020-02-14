@@ -7,7 +7,7 @@
   "resource_domain": {
     "domain_name": "resource.example.com",
     "domain_controller_ip": "",
-    "username": "resource.example.com\\Administrator",
+    "username": "Administrator",
     "password": ""
   }
 }
