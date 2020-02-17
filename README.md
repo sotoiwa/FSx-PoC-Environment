@@ -103,6 +103,12 @@ cdk deploy *ResourceDomainStack --require-approval never
 踏み台インスタンス（BastionStack/Bastion）を経由してドメインコントローラーインスタンス（ResourceDomainStack/DomainController）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
+コンピューター名を変更します。
+
+```powershell
+Rename-Computer DC -Restart
+```
+
 ADドメインサービスの機能をインストールします。
 
 ```powershell
@@ -151,6 +157,12 @@ aws ec2 describe-instances | \
 踏み台インスタンスを経由してメンバーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
+コンピューター名を変更します。
+
+```powershell
+Rename-Computer MEMBER -Restart
+```
+
 DNSサーバーを変更します。
 
 ```powershell
@@ -193,6 +205,12 @@ cdk deploy *JapanDomainStack --require-approval never
 
 踏み台インスタンスを経由してドメインコントローラーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
+
+コンピューター名を変更します。
+
+```powershell
+Rename-Computer DC -Restart
+```
 
 ADドメインサービスの機能をインストールします。
 
@@ -272,7 +290,7 @@ resource.example.comのドメインコントローラーで以下の作業を実
 Get-DnsServerZone
 Add-DnsServerConditionalForwarderZone `
     -Name "japan.example.com" `
-    -MasterServers <RESOURCEのドメインコントローラーのアドレス> `
+    -MasterServers <JAPANのドメインコントローラーのアドレス> `
     -ReplicationScope "Forest"
 Get-DnsServerZone
 ```
@@ -285,7 +303,7 @@ japan.example.comのドメインコントローラーで以下の作業を実施
 Get-DnsServerZone
 Add-DnsServerConditionalForwarderZone `
     -Name "resource.example.com" `
-    -MasterServers <JAPANのドメインコントローラーのアドレス> `
+    -MasterServers <RESOURCEのドメインコントローラーのアドレス> `
     -ReplicationScope "Forest"
 Get-DnsServerZone
 ```
@@ -359,6 +377,8 @@ AD環境であっても、メンバーインスタンスではAdministratorsグ�
 
 ## FSxのデプロイ
 
+（ここは以下のようにCDKでもできるが、時間がかかるので、GUIを使った方がよいかも）
+
 resource.example.comに接続するファイルシステムのデプロイにはドメンコントローラーのIPアドレスと、接続に使用するユーザーとパスワードが必要です。
 `cdk.context.json`に記載します。本来は権限を絞ったユーザーで接続するべきですが、検証なのでAdministratorを使います。
 
@@ -386,3 +406,37 @@ aws fsx describe-file-systems | \
 ```powershell
 net use z: \\<DNS名>\share
 ```
+
+## DFSの設定
+
+- [PowerShellでDFSの環境を構築する](https://blog.shibata.tech/entry/2018/07/18/000420)
+
+JAPANのドメインコントローラーをDFS名前空間サーバーとして設定します。
+
+DFSの構成に必要な機能をインストールします。
+
+```powershell
+Import-Module ServerManager
+Get-WindowsFeature
+Install-WindowsFeature FS-DFS-Namespace, FS-DFS-Replication, RSAT-DFS-Mgmt-Con
+Get-WindowsFeature
+```
+
+DFSルートを作ります。
+名前空間サーバー上にある共有フォルダに対してNew-DfsnRootコマンドを実行します。
+
+```powershell
+# 名前空間の作成
+$DFSRootPath = '\\japan.example.com\Public'
+$DFSRootTarget = 'C:\DFSRoots\Public'
+$DFSRootSharedPath = "\\$(hostname)\Public"
+# 共有フォルダを作成
+mkdir $DFSRootTarget
+New-SmbShare –Name 'Public' –Path $DFSRootTarget -FullAccess everyone
+# DFSルート作成
+New-DfsnRoot -Path $DFSRootPath -Type DomainV2 -TargetPath $DFSRootSharedPath
+```
+
+JAPANのドメインコントローラーにログインして確認します。
+
+Publ
