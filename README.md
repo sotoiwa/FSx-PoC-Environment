@@ -103,12 +103,6 @@ cdk deploy *ResourceDomainStack --require-approval never
 踏み台インスタンス（BastionStack/Bastion）を経由してドメインコントローラーインスタンス（ResourceDomainStack/DomainController）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
-コンピューター名を変更します。
-
-```powershell
-Rename-Computer DC -Restart
-```
-
 ADドメインサービスの機能をインストールします。
 
 ```powershell
@@ -157,12 +151,6 @@ aws ec2 describe-instances | \
 踏み台インスタンスを経由してメンバーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
-コンピューター名を変更します。
-
-```powershell
-Rename-Computer MEMBER -Restart
-```
-
 DNSサーバーを変更します。
 
 ```powershell
@@ -205,12 +193,6 @@ cdk deploy *JapanDomainStack --require-approval never
 
 踏み台インスタンスを経由してドメインコントローラーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
-
-コンピューター名を変更します。
-
-```powershell
-Rename-Computer DC -Restart
-```
 
 ADドメインサービスの機能をインストールします。
 
