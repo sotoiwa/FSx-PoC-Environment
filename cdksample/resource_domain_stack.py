@@ -18,7 +18,7 @@ class ResourceDomainStack(core.Stack):
             self, 'DomainController',
             instance_type=ec2.InstanceType('t3.large'),
             machine_image=ec2.MachineImage.latest_windows(
-                version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
+                version=ec2.WindowsVersion.WINDOWS_SERVER_2016_JAPANESE_FULL_BASE),
             key_name=self.node.try_get_context('key_name'),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),
@@ -32,7 +32,7 @@ class ResourceDomainStack(core.Stack):
             self, 'Member',
             instance_type=ec2.InstanceType('t3.large'),
             machine_image=ec2.MachineImage.latest_windows(
-                version=ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_JAPANESE_64BIT_BASE),
+                version=ec2.WindowsVersion.WINDOWS_SERVER_2016_JAPANESE_FULL_BASE),
             key_name=self.node.try_get_context('key_name'),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.ISOLATED),

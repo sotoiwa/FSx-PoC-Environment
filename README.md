@@ -68,10 +68,10 @@ pip install -r requirements.txt
 
 ### 環境に合わせたカスタマイズ
 
-`cdk.context.sample.json`を`cdk.context.json`としてコピーし、パラメータをいい感じに設定して下さい。
+`cdk.sample.json`を`cdk.json`としてコピーし、パラメータをいい感じに設定して下さい。
 
 ```shell
-cp cdk.context.sample.json cdk.context.json
+cp cdk.sample.json cdk.json
 ```
 
 ### デプロイ
@@ -114,6 +114,8 @@ Get-WindowsFeature
 
 ドメインコントローラーに昇格させます。セーフモード用のパスワードを聞かれるので入力します。
 
+（ドメインの機能レベル2012R2の場合）
+
 ```powershell
 #
 # AD DS 配置用の Windows PowerShell スクリプト
@@ -127,6 +129,28 @@ Install-ADDSForest `
 -DomainName "resource.example.com" `
 -DomainNetbiosName "RESOURCE" `
 -ForestMode "Win2012R2" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-Force:$true
+```
+
+（ドメインの機能レベル2016の場合）
+
+```
+#
+# AD DS 配置用の Windows PowerShell スクリプト
+#
+
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "WinThreshold" `
+-DomainName "resource.example.com" `
+-DomainNetbiosName "RESOURCE" `
+-ForestMode "WinThreshold" `
 -InstallDns:$true `
 -LogPath "C:\Windows\NTDS" `
 -NoRebootOnCompletion:$false `
@@ -205,6 +229,8 @@ Get-WindowsFeature
 
 ドメインコントローラーに昇格させます。セーフモード用のパスワードを聞かれるので入力します。
 
+（ドメインの機能レベル2012R2の場合）
+
 ```powershell
 #
 # AD DS 配置用の Windows PowerShell スクリプト
@@ -218,6 +244,28 @@ Install-ADDSForest `
 -DomainName "japan.example.com" `
 -DomainNetbiosName "JAPAN" `
 -ForestMode "Win2012R2" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-Force:$true
+```
+
+（ドメインの機能レベル2016の場合）
+
+```
+#
+# AD DS 配置用の Windows PowerShell スクリプト
+#
+
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "WinThreshold" `
+-DomainName "japan.example.com" `
+-DomainNetbiosName "JAPAN" `
+-ForestMode "WinThreshold" `
 -InstallDns:$true `
 -LogPath "C:\Windows\NTDS" `
 -NoRebootOnCompletion:$false `
@@ -421,4 +469,78 @@ New-DfsnRoot -Path $DFSRootPath -Type DomainV2 -TargetPath $DFSRootSharedPath
 
 JAPANのドメインコントローラーにログインして確認します。
 
-Publ
+## Amazon FSx CLIの実行
+
+- [Getting Started with the Amazon FSx CLI for Remote Management on PowerShell](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/remote-pwrshell.html) 
+
+FSxのPowerShell用のエンドポイントを確認します。
+
+```
+aws fsx describe-file-systems | jq -r '.FileSystems[].WindowsConfiguration.RemoteAdministrationEndpoint'
+```
+
+RESOURCEのドメインコントローラーにAdministratorでログインし、PowerShellを実行します。
+
+```powershell
+enter-pssession -ComputerName amznfsxjcdhtmu2.resource.example.com -ConfigurationName FsxRemoteAdmin -sessionoption (New-PSSessionOption -uiCulture "en-US")
+```
+
+クォータを有効にします。単位はバイトです。
+
+```powershell
+Enable-FSxUserQuotas -Track -DefaultLimit 2000000 -DefaultWarningLimit 1000000
+Enable-FSxUserQuotas -Enforce -DefaultLimit 4000000 -DefaultWarningLimit 3000000
+```
+
+設定を確認します。
+
+```powershell
+Get-FSxUserQuotaSettings
+```
+
+```powershell
+[amznfsxjcdhtmu2.resource.example.com]: PS>Get-FSxUserQuotaSettings
+
+DefaultWarningLimit DefaultLimit State
+------------------- ------------ -----
+            3000000      4000000 Enforce
+
+```
+
+user1@japan.example.comのクオータを設定します。
+
+```shell
+Set-FSxUserQuotas -Domain "resource.example.com" -Name "user1" -Limit 60000 -WarningLimit 40000
+Set-FSxUserQuotas -Domain "resource.example.com" -Name "group1" -Limit 60000 -WarningLimit 40000
+Set-FSxUserQuotas -Domain "japan.example.com" -Name "user1" -Limit 60000 -WarningLimit 40000
+```
+
+設定を確認します。
+
+```powershell
+[amznfsxjcdhtmu2.resource.example.com]: PS>Get-FSxUserQuotaEntries
+
+
+WarningLimit  : 40000
+DiskSpaceUsed : 0
+QuotaVolume   : Win32_LogicalDisk (DeviceID = "D:")
+Limit         : 60000
+Status        : OK
+User          : Win32_Account (Name = "user1", Domain = "RESOURCE")
+
+WarningLimit  : 40000
+DiskSpaceUsed : 61440
+QuotaVolume   : Win32_LogicalDisk (DeviceID = "D:")
+Limit         : 60000
+Status        : Exceeded
+User          : Win32_Account (Name = "user1", Domain = "JAPAN")
+
+WarningLimit  : 40000
+DiskSpaceUsed : 0
+QuotaVolume   : Win32_LogicalDisk (DeviceID = "D:")
+Limit         : 60000
+Status        : OK
+User          : Win32_Account (Name = "group1", Domain = "RESOURCE")
+
+
+```

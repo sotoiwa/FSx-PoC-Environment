@@ -7,6 +7,6 @@ venv/
 .venv
 __pycache__/
 cdk.out/
-cdk.context.json
+cdk.json
 setup-DFSN-servers.*
 password.*

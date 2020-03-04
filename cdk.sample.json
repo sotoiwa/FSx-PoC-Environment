@@ -1,0 +1,16 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "stack_prefix": "FSx",
+    "account": "",
+    "region": "ap-northeast-1",
+    "vpc_cidr": "10.1.0.0/16",
+    "key_name": "",
+    "resource_domain": {
+      "domain_name": "resource.example.com",
+      "domain_controller_ip": "",
+      "username": "",
+      "password": ""
+    }
+  }
+}
