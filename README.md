@@ -215,7 +215,7 @@ cdk deploy *JapanDomainStack --require-approval never
 
 `japan.example.com`のドメインを作成します。
 
-踏み台インスタンスを経由してドメインコントローラーインスタンス（ResourceDomainStack/Member）にRDPし、PowerShellを起動します。
+踏み台インスタンスを経由してドメインコントローラーインスタンス（JapanDomainStack/DomainController）にRDPし、PowerShellを起動します。
 あるいは、セッションマネージャーでPowerShellを起動します。
 
 ADドメインサービスの機能をインストールします。
